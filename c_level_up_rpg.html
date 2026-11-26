@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C++ Level-Up RPG | Luyện Code Thăng Cấp</title>
+    <!-- Tải Tailwind CSS qua CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font chữ hiện đại & font code Monospace -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+        .font-mono-code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Tùy chỉnh thanh cuộn chuẩn Dark Mode */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        /* Hiệu ứng phát sáng Neon */
+        .neon-glow {
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.25);
+        }
+        .neon-border {
+            border-color: rgba(56, 189, 248, 0.4);
+        }
+        /* Hiệu ứng rung khi sai */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
+        }
+        .animate-shake {
+            animation: shake 0.4s ease-in-out;
+        }
+        /* Hiệu ứng bật nảy Modal Level Up */
+        @keyframes popIn {
+            0% { transform: scale(0.7); opacity: 0; }
+            70% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop-in {
+            animation: popIn 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        /* Canvas pháo hoa phủ toàn màn hình khi lên cấp */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-sky-500 selection:text-white">
+
+    <!-- Canvas cho hiệu ứng pháo hoa khi Level Up -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- HEADER: Thanh trạng thái người chơi -->
+    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <!-- Logo & Tên game -->
+            <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-sky-500/20">
+                        C++
+                    </div>
+                    <div>
+                        <h1 class="font-extrabold text-lg tracking-tight text-white flex items-center gap-2">
+                            C++ LEVEL-UP <span class="text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-400 border border-sky-500/30">RPG</span>
+                        </h1>
+                        <p class="text-xs text-slate-400">Giải thuật càng sâu, Level càng cao</p>
+                    </div>
+                </div>
+
+                <!-- Nút Reset cho Mobile -->
+                <button onclick="openResetModal()" class="md:hidden text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/60 text-slate-300 hover:text-rose-400 border border-slate-700 transition">
+                    <i class="fa-solid fa-rotate-right mr-1"></i> Reset
+                </button>
+            </div>
+
+            <!-- Thông tin Nhân vật, Rank & Thanh XP -->
+            <div class="flex-1 max-w-2xl w-full bg-slate-800/80 border border-slate-700/80 rounded-xl p-3 flex flex-col sm:flex-row items-center gap-4">
+                <!-- Avatar + Tên + Danh hiệu -->
+                <div class="flex items-center gap-3 w-full sm:w-auto">
+                    <div class="relative">
+                        <div class="w-12 h-12 rounded-xl bg-slate-900 border-2 border-sky-400 flex items-center justify-center text-sky-400 font-bold text-lg shadow-inner">
+                            <span id="header-level-badge">Lv.1</span>
+                        </div>
+                        <span class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-slate-800 rounded-full" title="Đang trực tuyến"></span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-1.5">
+                            <span id="player-name-display" class="font-bold text-white text-sm sm:text-base cursor-pointer hover:text-sky-400 transition" onclick="editPlayerName()" title="Bấm để đổi tên">Coder Tập Sự</span>
+                            <button onclick="editPlayerName()" class="text-slate-400 hover:text-sky-400 text-xs p-1" title="Đổi tên nhân vật">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-1.5 mt-0.5">
+                            <span id="player-rank" class="text-xs font-semibold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                <i class="fa-solid fa-shield-halved mr-1 text-indigo-400"></i>Tân binh C++
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thanh tiến trình XP -->
+                <div class="flex-1 w-full">
+                    <div class="flex justify-between text-xs font-medium mb-1.5">
+                        <span class="text-sky-400 font-semibold"><i class="fa-solid fa-bolt mr-1"></i>Kinh nghiệm (XP)</span>
+                        <span class="text-slate-300 font-mono-code"><span id="xp-current">0</span> / <span id="xp-next">100</span> XP</span>
+                    </div>
+                    <div class="w-full h-3 bg-slate-950 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                        <div id="xp-bar-fill" class="h-full bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 rounded-full transition-all duration-700 ease-out" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nút Reset tiến trình Desktop -->
+            <div class="hidden md:flex items-center gap-2">
+                <button onclick="openResetModal()" class="text-xs font-medium px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/70 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-800 transition flex items-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>Reset tiến trình</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT: Bố cục 2 cột -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- CỘT TRÁI (4 cột trên desktop): Danh sách nhiệm vụ / Cấp độ -->
+        <section class="lg:col-span-4 flex flex-col gap-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-bold text-base text-white flex items-center gap-2">
+                        <i class="fa-solid fa-scroll text-sky-400"></i>
+                        Bảng Nhiệm Vụ
+                    </h2>
+                    <span id="quest-progress-text" class="text-xs font-mono-code px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700">
+                        0/6 Hoàn thành
+                    </span>
+                </div>
+
+                <!-- Danh sách 6 bài tập render bằng JS -->
+                <div id="quest-list" class="flex flex-col gap-2.5">
+                    <!-- Các item nhiệm vụ sẽ được chèn vào đây -->
+                </div>
+            </div>
+
+            <!-- Bảng tra cứu Danh hiệu (Rank Roadmap) -->
+            <div class="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-trophy text-amber-400"></i> Lộ trình thăng cấp
+                </h3>
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center p-2 rounded-lg bg-slate-800/50">
+                        <span class="text-slate-300 font-medium">Lv.1</span>
+                        <span class="text-sky-400 font-semibold">Tân binh C++</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 rounded-lg bg-slate-800/50">
+                        <span class="text-slate-300 font-medium">Lv.2</span>
+                        <span class="text-cyan-400 font-semibold">Học việc Vòng lặp</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 rounded-lg bg-slate-800/50">
+                        <span class="text-slate-300 font-medium">Lv.3</span>
+                        <span class="text-emerald-400 font-semibold">Chiến binh Mảng</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 rounded-lg bg-slate-800/50">
+                        <span class="text-slate-300 font-medium">Lv.4</span>
+                        <span class="text-purple-400 font-semibold">Pháp sư Hàm</span>
+                    </div>
+                    <div class="flex justify-between items-center p-2 rounded-lg bg-slate-800/50">
+                        <span class="text-slate-300 font-medium">Lv.5+</span>
+                        <span class="text-amber-400 font-semibold">Chúa tể Thuật toán</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CỘT PHẢI (8 cột trên desktop): Khu vực làm bài & Trình chấm -->
+        <section class="lg:col-span-8 flex flex-col gap-4">
+            
+            <!-- Thẻ Đề bài -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                <div class="flex flex-wrap items-start justify-between gap-3 pb-4 border-b border-slate-800">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span id="problem-req-level" class="text-xs font-bold px-2.5 py-0.5 rounded-md bg-sky-500/20 text-sky-400 border border-sky-500/30">
+                                Yêu cầu Lv.1
+                            </span>
+                            <span id="problem-difficulty" class="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400">
+                                Dễ
+                            </span>
+                            <span id="problem-solved-badge" class="hidden text-xs font-semibold px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                <i class="fa-solid fa-circle-check mr-1"></i>Đã hoàn thành
+                            </span>
+                        </div>
+                        <h2 id="problem-title" class="text-xl sm:text-2xl font-extrabold text-white">
+                            Bài 1: Tổng hai số nguyên
+                        </h2>
+                    </div>
+
+                    <div class="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-3.5 py-2 rounded-xl">
+                        <i class="fa-solid fa-star text-amber-400"></i>
+                        <span class="text-sm font-bold text-amber-300">+<span id="problem-xp">50</span> XP</span>
+                    </div>
+                </div>
+
+                <!-- Nội dung mô tả bài toán -->
+                <div class="mt-4 text-slate-300 text-sm leading-relaxed space-y-3">
+                    <p id="problem-desc">
+                        Viết chương trình nhập vào hai số nguyên <code class="text-sky-400 bg-slate-800 px-1.5 py-0.5 rounded">a</code> và <code class="text-sky-400 bg-slate-800 px-1.5 py-0.5 rounded">b</code> từ bàn phím (cách nhau bởi dấu cách), sau đó in ra tổng của hai số đó.
+                    </p>
+
+                    <!-- Ví dụ Input / Output -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3">
+                            <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
+                                <span>Ví dụ Input (Đầu vào)</span>
+                                <i class="fa-solid fa-right-to-bracket text-slate-500"></i>
+                            </div>
+                            <pre id="problem-sample-in" class="font-mono-code text-sm text-sky-300 whitespace-pre-wrap">5 7</pre>
+                        </div>
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3">
+                            <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
+                                <span>Ví dụ Output (Đầu ra)</span>
+                                <i class="fa-solid fa-right-from-bracket text-slate-500"></i>
+                            </div>
+                            <pre id="problem-sample-out" class="font-mono-code text-sm text-emerald-300 whitespace-pre-wrap">12</pre>
+                        </div>
+                    </div>
+
+                    <!-- Hộp Gợi ý (Ẩn mặc định, bấm nút Gợi ý để mở) -->
+                    <div id="hint-box" class="hidden bg-amber-950/30 border border-amber-700/50 rounded-xl p-3.5 text-amber-200 text-xs sm:text-sm">
+                        <div class="font-bold text-amber-400 mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-lightbulb"></i> Gợi ý thuật toán:
+                        </div>
+                        <p id="problem-hint-text">Sử dụng cin >> a >> b; để đọc 2 số và cout << a + b; để in kết quả.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trình soạn thảo Code C++ -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex flex-col">
+                <!-- Thanh công cụ Editor -->
+                <div class="bg-slate-800/90 px-4 py-2.5 border-b border-slate-700 flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+                        <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+                        <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                        <span class="ml-2 text-xs font-mono-code font-semibold text-slate-300">main.cpp (GNU G++17)</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="resetEditorCode()" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition" title="Khôi phục code mẫu ban đầu">
+                            <i class="fa-solid fa-code mr-1"></i>Code mẫu
+                        </button>
+                        <button onclick="toggleHint()" class="text-xs px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 transition">
+                            <i class="fa-solid fa-lightbulb mr-1"></i>Gợi ý
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Vùng nhập code hỗ trợ phím Tab -->
+                <div class="relative bg-[#0b1120]">
+                    <textarea id="code-editor" spellcheck="false" class="w-full h-64 sm:h-72 p-4 bg-transparent text-slate-100 font-mono-code text-sm leading-relaxed focus:outline-none resize-y" placeholder="// Viết code C++ của bạn tại đây..."></textarea>
+                </div>
+
+                <!-- Thanh hành động Submit -->
+                <div class="bg-slate-800/70 px-4 py-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                    <div class="text-xs text-slate-400">
+                        <i class="fa-solid fa-keyboard mr-1 text-sky-400"></i> Mẹo: Hỗ trợ phím <kbd class="px-1.5 py-0.5 bg-slate-700 rounded text-slate-200">Tab</kbd> để thụt lề code.
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                        <!-- Nút dự phòng nếu API bị chặn trong iframe sandbox -->
+                        <button id="btn-simulate" onclick="simulatePass()" class="text-xs font-semibold px-3.5 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 transition flex items-center gap-1.5" title="Dùng để test nhanh luồng cộng XP nếu mạng/sandbox chặn API chấm bài">
+                            <i class="fa-solid fa-forward-fast text-amber-400"></i>
+                            <span>Test nhanh (Simulate Pass)</span>
+                        </button>
+
+                        <!-- Nút Chạy & Nộp bài chính -->
+                        <button id="btn-submit" onclick="submitCode()" class="text-sm font-bold px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-lg shadow-sky-500/25 transition flex items-center gap-2">
+                            <i class="fa-solid fa-play"></i>
+                            <span>Chạy & Nộp bài (Submit)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bảng điều khiển Console Output (Kết quả chấm Test Case) -->
+            <div id="console-panel" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-terminal text-emerald-400"></i>
+                        Console Output & Kết quả Test Case
+                    </h3>
+                    <span id="console-status" class="text-xs font-mono-code text-slate-400">Sẵn sàng chấm bài</span>
+                </div>
+
+                <div id="console-body" class="mt-3 text-sm">
+                    <div class="text-slate-400 text-xs sm:text-sm py-4 text-center bg-slate-950/60 rounded-xl border border-slate-800/80">
+                        Nhấn <strong class="text-sky-400">"Chạy & Nộp bài (Submit)"</strong> để biên dịch code C++ và kiểm tra với các bộ Test Case!
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- MODAL CHÚC MỪNG THĂNG CẤP (LEVEL UP) -->
+    <div id="levelup-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-sky-400 rounded-3xl max-w-md w-full p-6 text-center shadow-2xl neon-glow animate-pop-in relative overflow-hidden">
+            <!-- Hiệu ứng ánh sáng nền -->
+            <div class="absolute -top-20 -left-20 w-40 h-40 bg-sky-500/20 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-20 -right-20 w-40 h-40 bg-emerald-500/20 rounded-full blur-3xl"></div>
+
+            <div class="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-slate-950 text-4xl shadow-lg shadow-amber-500/30 mb-4">
+                <i class="fa-solid fa-crown"></i>
+            </div>
+
+            <div class="text-xs font-extrabold uppercase tracking-widest text-sky-400 mb-1">Chúc mừng thăng cấp!</div>
+            <h2 class="text-3xl font-black text-white mb-2">LEVEL <span id="modal-new-level" class="text-amber-400">2</span></h2>
+            
+            <p class="text-sm text-slate-300 mb-4">
+                Bạn đã đạt danh hiệu mới: <br>
+                <span id="modal-new-rank" class="inline-block mt-1.5 px-3 py-1 rounded-lg bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 font-bold text-base">
+                    Học việc Vòng lặp
+                </span>
+            </p>
+
+            <!-- Danh sách bài mới vừa mở khóa -->
+            <div id="modal-unlocked-box" class="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 mb-5 text-left">
+                <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-lock-open"></i> Nhiệm vụ mới đã mở khóa:
+                </div>
+                <ul id="modal-unlocked-list" class="space-y-1.5 text-xs sm:text-sm text-slate-200">
+                    <!-- Danh sách bài mới mở khóa chèn vào đây -->
+                </ul>
+            </div>
+
+            <button onclick="closeLevelUpModal()" class="w-full py-3 rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-400 hover:to-emerald-400 text-slate-950 font-extrabold text-sm shadow-lg transition">
+                Tiếp tục chinh phục!
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL ĐỔI TÊN NHÂN VẬT -->
+    <div id="name-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-5 shadow-2xl">
+            <h3 class="text-lg font-bold text-white mb-2">Đổi tên lập trình viên</h3>
+            <p class="text-xs text-slate-400 mb-4">Nhập tên hiển thị của bạn trên bảng trạng thái:</p>
+            <input id="input-player-name" type="text" maxlength="24" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm focus:outline-none focus:border-sky-400 mb-4" placeholder="Ví dụ: Minh C++ Pro">
+            <div class="flex justify-end gap-2">
+                <button onclick="closeNameModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold">Hủy</button>
+                <button onclick="savePlayerName()" class="px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-bold">Lưu tên</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL XÁC NHẬN RESET TIẾN TRÌNH (Thay thế confirm() bị cấm) -->
+    <div id="reset-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-rose-800/60 rounded-2xl max-w-sm w-full p-5 shadow-2xl">
+            <div class="w-12 h-12 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-xl mb-3">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-1">Reset toàn bộ tiến trình?</h3>
+            <p class="text-xs text-slate-400 mb-5 leading-relaxed">
+                Toàn bộ Level, điểm XP và trạng thái hoàn thành các bài tập sẽ quay về Lv.1 ban đầu. Hành động này không thể hoàn tác.
+            </p>
+            <div class="flex justify-end gap-2">
+                <button onclick="closeResetModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold">Hủy bỏ</button>
+                <button onclick="confirmResetProgress()" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold">Xác nhận Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // ==========================================
+        // 1. DỮ LIỆU 6 BÀI TẬP C++ MẪU & DANH HIỆU
+        // ==========================================
+        const RANKS = [
+            { minLevel: 1, title: "Tân binh C++" },
+            { minLevel: 2, title: "Học việc Vòng lặp" },
+            { minLevel: 3, title: "Chiến binh Mảng" },
+            { minLevel: 4, title: "Pháp sư Hàm" },
+            { minLevel: 5, title: "Chúa tể Thuật toán" }
+        ];
+
+        const DEFAULT_TEMPLATE = `#include <iostream>\nusing namespace std;\n\nint main() {\n    // Code của bạn ở đây\n    \n    return 0;\n}`;
+
+        const PROBLEMS = [
+            {
+                id: 1,
+                title: "Bài 1: Tổng hai số nguyên",
+                reqLevel: 1,
+                difficulty: "Dễ",
+                xp: 50,
+                description: "Viết chương trình nhập vào hai số nguyên <code>a</code> và <code>b</code> từ bàn phím (cách nhau bởi dấu cách), sau đó in ra tổng <code>a + b</code>.",
+                sampleInput: "5 7",
+                sampleOutput: "12",
+                hint: "Khai báo hai biến <code>int a, b;</code>, dùng <code>cin >> a >> b;</code> để đọc dữ liệu và <code>cout << a + b;</code> để in kết quả.",
+                starterCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n    int a, b;\n    // Nhập a, b và in ra tổng\n    \n    return 0;\n}`,
+                testCases: [
+                    { input: "5 7", expected: "12" },
+                    { input: "-10 25", expected: "15" },
+                    { input: "1000 2500", expected: "3500" }
+                ]
+            },
+            {
+                id: 2,
+                title: "Bài 2: Kiểm tra số chẵn lẻ",
+                reqLevel: 1,
+                difficulty: "Dễ",
+                xp: 50,
+                description: "Nhập vào một số nguyên <code>n</code>. Nếu <code>n</code> là số chẵn, in ra <code>CHAN</code>. Ngược lại nếu là số lẻ, in ra <code>LE</code> (in hoa, không dấu).",
+                sampleInput: "8",
+                sampleOutput: "CHAN",
+                hint: "Dùng phép chia lấy dư <code>%</code>. Nếu <code>n % 2 == 0</code> thì in ra <code>CHAN</code>, ngược lại in ra <code>LE</code>.",
+                starterCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    // Kiểm tra n chẵn hay lẻ\n    \n    return 0;\n}`,
+                testCases: [
+                    { input: "8", expected: "CHAN" },
+                    { input: "15", expected: "LE" },
+                    { input: "0", expected: "CHAN" }
+                ]
+            },
+            {
+                id: 3,
+                title: "Bài 3: Tính tổng từ 1 đến N",
+                reqLevel: 2,
+                difficulty: "Trung bình",
+                xp: 70,
+                description: "Nhập vào một số nguyên dương <code>N</code>. Hãy tính và in ra tổng các số nguyên từ 1 đến N: <code>S = 1 + 2 + ... + N</code>.",
+                sampleInput: "5",
+                sampleOutput: "15",
+                hint: "Bạn có thể dùng vòng lặp <code>for (int i = 1; i <= n; i++)</code> để cộng dồn vào biến <code>sum</code> (nên dùng kiểu <code>long long</code> cho an toàn).",
+                starterCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n    long long n;\n    cin >> n;\n    // Tính tổng từ 1 đến n\n    \n    return 0;\n}`,
+                testCases: [
+                    { input: "5", expected: "15" },
+                    { input: "10", expected: "55" },
+                    { input: "100", expected: "5050" }
+                ]
+            },
+            {
+                id: 4,
+                title: "Bài 4: Tìm số lớn nhất trong 3 số",
+                reqLevel: 2,
+                difficulty: "Trung bình",
+                xp: 80,
+                description: "Nhập vào 3 số nguyên <code>a, b, c</code> cách nhau bởi dấu cách. Tìm và in ra giá trị lớn nhất trong 3 số đó.",
+                sampleInput: "12 45 29",
+                sampleOutput: "45",
+                hint: "Gán <code>int maxVal = a;</code> sau đó lần lượt so sánh nếu <code>b > maxVal</code> thì cập nhật <code>maxVal = b</code>, tương tự với <code>c</code>.",
+                starterCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n    int a, b, c;\n    cin >> a >> b >> c;\n    // Tìm số lớn nhất trong 3 số\n    \n    return 0;\n}`,
+                testCases: [
+                    { input: "12 45 29", expected: "45" },
+                    { input: "-5 -2 -10", expected: "-2" },
+                    { input: "7 7 3", expected: "7" }
+                ]
+            },
+            {
+                id: 5,
+                title: "Bài 5: Đếm số phần tử dương trong mảng",
+                reqLevel: 3,
+                difficulty: "Khá",
+                xp: 100,
+                description: "Dòng đầu tiên nhập số nguyên dương <code>N</code> (N ≤ 100). Dòng thứ hai nhập <code>N</code> số nguyên. Hãy đếm và in ra số lượng các phần tử lớn hơn 0 (số dương).",
+                sampleInput: "5\n-3 4 0 9 -1",
+                sampleOutput: "2",
+                hint: "Dùng vòng lặp chạy <code>N</code> lần để đọc từng phần tử <code>x</code>. Nếu <code>x > 0</code> thì tăng biến đếm <code>count++</code>.",
+                starterCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    // Đọc n số và đếm số lượng số > 0\n    \n    return 0;\n}`,
+                testCases: [
+                    { input: "5\n-3 4 0 9 -1", expected: "2" },
+                    { input: "4\n-1 -2 -5 0", expected: "0" },
+                    { input: "3\n10 20 30", expected: "3" }
+                ]
+            },
+            {
+                id: 6,
+                title: "Bài 6: Kiểm tra số nguyên tố",
+                reqLevel: 4,
+                difficulty: "Thử thách",
+                xp: 150,
+                description: "Nhập vào một số nguyên <code>N</code>. Kiểm tra xem <code>N</code> có phải là số nguyên tố hay không. In ra <code>YES</code> nếu là số nguyên tố, ngược lại in ra <code>NO</code>.",
+                sampleInput: "17",
+                sampleOutput: "YES",
+                hint: "Số nguyên tố là số nguyên lớn hơn 1 chỉ chia hết cho 1 và chính nó. Kiểm tra nếu <code>n < 2</code> thì in NO. Sau đó duyệt <code>i</code> từ 2 đến <code>i * i <= n</code>, nếu <code>n % i == 0</code> thì in NO.",
+                starterCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n    int n;\n    cin >> n;\n    // Kiểm tra số nguyên tố và in YES hoặc NO\n    \n    return 0;\n}`,
+                testCases: [
+                    { input: "17", expected: "YES" },
+                    { input: "1", expected: "NO" },
+                    { input: "12", expected: "NO" },
+                    { input: "2", expected: "YES" }
+                ]
+            }
+        ];
+
+        // ==========================================
+        // 2. QUẢN LÝ TRẠNG THÁI & LOCALSTORAGE
+        // ==========================================
+        const STORAGE_KEY = "cpp_levelup_rpg_save_v1";
+
+        let playerState = {
+            name: "Coder Tập Sự",
+            level: 1,
+            xp: 0, // XP hiện tại trong cấp độ hiện tại (0 - 99)
+            solvedIds: [], // Danh sách ID bài đã giải
+            savedCode: {} // Lưu code nháp theo từng bài
+        };
+
+        let currentProblemId = 1;
+        let isSubmitting = false;
+
+        // Tải dữ liệu từ localStorage
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    playerState = { ...playerState, ...parsed };
+                }
+            } catch (e) {
+                console.warn("Không thể đọc localStorage:", e);
+            }
+        }
+
+        // Lưu dữ liệu vào localStorage
+        function saveState() {
+            try {
+                // Lưu lại đoạn code đang gõ cho bài hiện tại
+                const editor = document.getElementById("code-editor");
+                if (editor) {
+                    playerState.savedCode[currentProblemId] = editor.value;
+                }
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(playerState));
+            } catch (e) {
+                console.warn("Không thể lưu localStorage:", e);
+            }
+        }
+
+        // Lấy danh hiệu theo Level
+        function getRankTitle(level) {
+            let currentRank = RANKS[0].title;
+            for (const r of RANKS) {
+                if (level >= r.minLevel) {
+                    currentRank = r.title;
+                }
+            }
+            return currentRank;
+        }
+
+        // ==========================================
+        // 3. CẬP NHẬT GIAO DIỆN (UI RENDERING)
+        // ==========================================
+        function updateHeaderUI() {
+            document.getElementById("player-name-display").textContent = playerState.name;
+            document.getElementById("header-level-badge").textContent = `Lv.${playerState.level}`;
+            document.getElementById("player-rank").innerHTML = `<i class="fa-solid fa-shield-halved mr-1 text-indigo-400"></i>${getRankTitle(playerState.level)}`;
+            
+            const xpNeeded = 100; // Mỗi 100 XP lên 1 Level
+            document.getElementById("xp-current").textContent = playerState.xp;
+            document.getElementById("xp-next").textContent = xpNeeded;
+            
+            const pct = Math.min(100, Math.round((playerState.xp / xpNeeded) * 100));
+            document.getElementById("xp-bar-fill").style.width = `${pct}%`;
+        }
+
+        function renderQuestList() {
+            const listEl = document.getElementById("quest-list");
+            listEl.innerHTML = "";
+
+            document.getElementById("quest-progress-text").textContent = `${playerState.solvedIds.length}/${PROBLEMS.length} Hoàn thành`;
+
+            PROBLEMS.forEach(prob => {
+                const isLocked = playerState.level < prob.reqLevel;
+                const isSolved = playerState.solvedIds.includes(prob.id);
+                const isSelected = prob.id === currentProblemId;
+
+                const btn = document.createElement("button");
+                btn.type = "button";
+                
+                // Styling thẻ nhiệm vụ tùy theo trạng thái
+                let baseClasses = "w-full text-left p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 ";
+                if (isLocked) {
+                    baseClasses += "bg-slate-950/60 border-slate-800/80 opacity-65 cursor-not-allowed";
+                } else if (isSelected) {
+                    baseClasses += "bg-slate-800/90 border-sky-400 shadow-md shadow-sky-500/10";
+                } else {
+                    baseClasses += "bg-slate-800/40 hover:bg-slate-800/80 border-slate-700/70 cursor-pointer";
+                }
+                btn.className = baseClasses;
+
+                btn.onclick = () => {
+                    if (isLocked) {
+                        btn.classList.remove("animate-shake");
+                        void btn.offsetWidth; // trigger reflow
+                        btn.classList.add("animate-shake");
+                        showToast(`Bạn cần đạt Lv.${prob.reqLevel} để mở khóa nhiệm vụ này!`, "warning");
+                        return;
+                    }
+                    selectProblem(prob.id);
+                };
+
+                // Icon bên trái
+                let leftIcon = "";
+                if (isLocked) {
+                    leftIcon = `<div class="w-8 h-8 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center text-slate-500 shrink-0"><i class="fa-solid fa-lock"></i></div>`;
+                } else if (isSolved) {
+                    leftIcon = `<div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0"><i class="fa-solid fa-check"></i></div>`;
+                } else {
+                    leftIcon = `<div class="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400 font-bold text-xs shrink-0">#${prob.id}</div>`;
+                }
+
+                // Huy hiệu bên phải
+                let rightBadge = "";
+                if (isLocked) {
+                    rightBadge = `<span class="text-[11px] font-semibold px-2 py-1 rounded-md bg-slate-900 text-slate-400 border border-slate-800 shrink-0">Cần đạt Lv.${prob.reqLevel}</span>`;
+                } else {
+                    rightBadge = `<span class="text-xs font-bold text-amber-400 shrink-0">+${prob.xp} XP</span>`;
+                }
+
+                btn.innerHTML = `
+                    <div class="flex items-center gap-3 min-w-0">
+                        ${leftIcon}
+                        <div class="truncate">
+                            <div class="text-sm font-bold ${isLocked ? 'text-slate-400' : 'text-white'} truncate">${prob.title}</div>
+                            <div class="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+                                <span>Lv.${prob.reqLevel}</span>
+                                <span>•</span>
+                                <span>${prob.difficulty}</span>
+                            </div>
+                        </div>
+                    </div>
+                    ${rightBadge}
+                `;
+
+                listEl.appendChild(btn);
+            });
+        }
+
+        function selectProblem(id) {
+            saveState(); // Lưu code bài cũ trước khi chuyển
+            currentProblemId = id;
+            const prob = PROBLEMS.find(p => p.id === id);
+            if (!prob) return;
+
+            // Cập nhật thông tin đề bài
+            document.getElementById("problem-req-level").textContent = `Yêu cầu Lv.${prob.reqLevel}`;
+            document.getElementById("problem-difficulty").textContent = prob.difficulty;
+            document.getElementById("problem-title").textContent = prob.title;
+            document.getElementById("problem-xp").textContent = prob.xp;
+            document.getElementById("problem-desc").innerHTML = prob.description;
+            document.getElementById("problem-sample-in").textContent = prob.sampleInput;
+            document.getElementById("problem-sample-out").textContent = prob.sampleOutput;
+            document.getElementById("problem-hint-text").innerHTML = prob.hint;
+
+            // Hiển thị huy hiệu đã giải nếu xong rồi
+            const solvedBadge = document.getElementById("problem-solved-badge");
+            if (playerState.solvedIds.includes(prob.id)) {
+                solvedBadge.classList.remove("hidden");
+            } else {
+                solvedBadge.classList.add("hidden");
+            }
+
+            // Ẩn hộp gợi ý khi chuyển bài
+            document.getElementById("hint-box").classList.add("hidden");
+
+            // Nạp code đã lưu hoặc code mẫu
+            const editor = document.getElementById("code-editor");
+            editor.value = playerState.savedCode[prob.id] || prob.starterCode || DEFAULT_TEMPLATE;
+
+            // Reset Console Output
+            document.getElementById("console-status").textContent = "Sẵn sàng chấm bài";
+            document.getElementById("console-status").className = "text-xs font-mono-code text-slate-400";
+            document.getElementById("console-body").innerHTML = `
+                <div class="text-slate-400 text-xs sm:text-sm py-4 text-center bg-slate-950/60 rounded-xl border border-slate-800/80">
+                    Nhấn <strong class="text-sky-400">"Chạy & Nộp bài (Submit)"</strong> để biên dịch code C++ và kiểm tra với các bộ Test Case!
+                </div>
+            `;
+
+            renderQuestList();
+        }
+
+        function resetEditorCode() {
+            const prob = PROBLEMS.find(p => p.id === currentProblemId);
+            if (prob) {
+                document.getElementById("code-editor").value = prob.starterCode || DEFAULT_TEMPLATE;
+                saveState();
+                showToast("Đã khôi phục code mẫu ban đầu.", "info");
+            }
+        }
+
+        function toggleHint() {
+            const hintBox = document.getElementById("hint-box");
+            hintBox.classList.toggle("hidden");
+        }
+
+        // ==========================================
+        // 4. HỖ TRỢ PHÍM TAB TRONG CODE EDITOR
+        // ==========================================
+        const codeEditorEl = document.getElementById("code-editor");
+        codeEditorEl.addEventListener("keydown", function(e) {
+            if (e.key === "Tab") {
+                e.preventDefault();
+                const start = this.selectionStart;
+                const end = this.selectionEnd;
+                // Chèn 4 dấu cách chuẩn C++
+                this.value = this.value.substring(0, start) + "    " + this.value.substring(end);
+                this.selectionStart = this.selectionEnd = start + 4;
+            }
+        });
+        codeEditorEl.addEventListener("input", () => saveState());
+
+        // ==========================================
+        // 5. CHẤM CODE C++ QUA PISTON API & DỰ PHÒNG
+        // ==========================================
+        async function executeCppWithPiston(sourceCode, stdinData) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // Timeout 8s
+
+            try {
+                const response = await fetch("https://emkc.org/api/v2/piston/execute", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        language: "c++",
+                        version: "*",
+                        files: [{ name: "main.cpp", content: sourceCode }],
+                        stdin: stdinData
+                    }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP Error: ${response.status}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                clearTimeout(timeoutId);
+                throw error;
+            }
+        }
+
+        // Chuẩn hóa chuỗi output để so sánh chính xác (bỏ khoảng trắng thừa cuối dòng/cuối bài)
+        function normalizeOutput(str) {
+            return (str || "")
+                .replace(/\r\n/g, "\n")
+                .split("\n")
+                .map(line => line.trimEnd())
+                .join("\n")
+                .trim();
+        }
+
+        async function submitCode() {
+            if (isSubmitting) return;
+            const prob = PROBLEMS.find(p => p.id === currentProblemId);
+            const code = document.getElementById("code-editor").value;
+
+            if (!code.trim()) {
+                showToast("Vui lòng nhập code C++ trước khi nộp bài!", "warning");
+                return;
+            }
+
+            isSubmitting = true;
+            saveState();
+
+            const btnSubmit = document.getElementById("btn-submit");
+            const consoleStatus = document.getElementById("console-status");
+            const consoleBody = document.getElementById("console-body");
+
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Đang biên dịch C++...</span>`;
+            consoleStatus.textContent = "Đang gửi code tới trình biên dịch...";
+            consoleStatus.className = "text-xs font-mono-code text-sky-400 animate-pulse";
+
+            consoleBody.innerHTML = `
+                <div class="py-6 text-center text-slate-300 bg-slate-950/60 rounded-xl border border-slate-800">
+                    <i class="fa-solid fa-gear fa-spin text-2xl text-sky-400 mb-2"></i>
+                    <p class="text-xs sm:text-sm">Đang biên dịch bằng <code class="text-sky-300">g++</code> và chạy ${prob.testCases.length} test case...</p>
+                </div>
+            `;
+
+            try {
+                let allPassed = true;
+                let resultsHtml = `<div class="space-y-2.5">`;
+
+                for (let i = 0; i < prob.testCases.length; i++) {
+                    const tc = prob.testCases[i];
+                    const res = await executeCppWithPiston(code, tc.input);
+
+                    // Kiểm tra lỗi biên dịch (Compilation Error)
+                    if (res.compile && res.compile.code !== 0) {
+                        const errMsg = res.compile.stderr || res.compile.output || "Lỗi biên dịch không xác định";
+                        consoleStatus.textContent = "Compilation Error (Lỗi biên dịch)";
+                        consoleStatus.className = "text-xs font-mono-code text-rose-400 font-bold";
+                        consoleBody.innerHTML = `
+                            <div class="bg-rose-950/30 border border-rose-800/70 rounded-xl p-4">
+                                <div class="text-rose-400 font-bold text-sm mb-2 flex items-center gap-2">
+                                    <i class="fa-solid fa-bug"></i> Lỗi biên dịch C++ (Compilation Error):
+                                </div>
+                                <pre class="font-mono-code text-xs text-rose-200 whitespace-pre-wrap overflow-x-auto bg-slate-950 p-3 rounded-lg border border-rose-900/50">${escapeHtml(errMsg)}</pre>
+                            </div>
+                        `;
+                        isSubmitting = false;
+                        btnSubmit.disabled = false;
+                        btnSubmit.innerHTML = `<i class="fa-solid fa-play"></i> <span>Chạy & Nộp bài (Submit)</span>`;
+                        return;
+                    }
+
+                    // Kiểm tra lỗi khi chạy (Runtime Error)
+                    const runStage = res.run || {};
+                    const actualRaw = runStage.stdout || "";
+                    const stderrRaw = runStage.stderr || "";
+                    const actualNorm = normalizeOutput(actualRaw);
+                    const expectedNorm = normalizeOutput(tc.expected);
+
+                    const passed = (runStage.code === 0) && (actualNorm === expectedNorm);
+                    if (!passed) allPassed = false;
+
+                    resultsHtml += `
+                        <div class="p-3 rounded-xl border ${passed ? 'bg-emerald-950/20 border-emerald-800/60' : 'bg-rose-950/20 border-rose-800/60'}">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="font-bold text-xs ${passed ? 'text-emerald-400' : 'text-rose-400'}">
+                                    ${passed ? '<i class="fa-solid fa-circle-check mr-1"></i>' : '<i class="fa-solid fa-circle-xmark mr-1"></i>'}
+                                    Test Case #${i + 1}: ${passed ? 'PASSED' : 'FAILED'}
+                                </span>
+                                <span class="text-[11px] font-mono-code text-slate-400">Exit Code: ${runStage.code ?? 0}</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono-code">
+                                <div class="bg-slate-950 p-2 rounded-lg border border-slate-800">
+                                    <div class="text-[10px] text-slate-500 mb-0.5">Input:</div>
+                                    <div class="text-slate-300 whitespace-pre-wrap">${escapeHtml(tc.input)}</div>
+                                </div>
+                                <div class="bg-slate-950 p-2 rounded-lg border border-slate-800">
+                                    <div class="text-[10px] text-slate-500 mb-0.5">Expected Output:</div>
+                                    <div class="text-emerald-300 whitespace-pre-wrap">${escapeHtml(expectedNorm)}</div>
+                                </div>
+                                <div class="bg-slate-950 p-2 rounded-lg border border-slate-800">
+                                    <div class="text-[10px] text-slate-500 mb-0.5">Actual Output:</div>
+                                    <div class="${passed ? 'text-emerald-300' : 'text-rose-300'} whitespace-pre-wrap">${escapeHtml(actualNorm || (stderrRaw ? "[Runtime Error] " + stderrRaw : "(Trống)"))}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                resultsHtml += `</div>`;
+                consoleBody.innerHTML = resultsHtml;
+
+                if (allPassed) {
+                    consoleStatus.textContent = "Accepted (Vượt qua tất cả Test Case!)";
+                    consoleStatus.className = "text-xs font-mono-code text-emerald-400 font-bold";
+                    handleProblemPassed(prob);
+                } else {
+                    consoleStatus.textContent = "Wrong Answer (Chưa khớp kết quả)";
+                    consoleStatus.className = "text-xs font-mono-code text-rose-400 font-bold";
+                }
+
+            } catch (error) {
+                // Cơ chế dự phòng thông minh khi mạng hoặc môi trường sandbox chặn gọi API Piston
+                consoleStatus.textContent = "Không thể kết nối API chấm bài";
+                consoleStatus.className = "text-xs font-mono-code text-amber-400 font-bold";
+                consoleBody.innerHTML = `
+                    <div class="bg-amber-950/30 border border-amber-700/60 rounded-xl p-4 text-xs sm:text-sm space-y-3">
+                        <div class="text-amber-300 font-bold flex items-center gap-2">
+                            <i class="fa-solid fa-wifi"></i> Trình duyệt hoặc Sandbox đang chặn kết nối tới Piston API
+                        </div>
+                        <p class="text-slate-300 leading-relaxed">
+                            Môi trường xem trước (iframe) hiện tại có thể chặn request mạng ra ngoài hoặc API đang bận. Khi bạn đẩy file này lên <strong>GitHub Pages</strong>, tính năng chấm code C++ thật sẽ hoạt động bình thường.
+                        </p>
+                        <div class="pt-1">
+                            <button onclick="simulatePass()" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition inline-flex items-center gap-2">
+                                <i class="fa-solid fa-forward-fast"></i> Dùng "Chế độ Test nhanh (Simulate Pass)" để nhận XP ngay
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } finally {
+                isSubmitting = false;
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = `<i class="fa-solid fa-play"></i> <span>Chạy & Nộp bài (Submit)</span>`;
+            }
+        }
+
+        // Chế độ Test nhanh (Simulate Pass)
+        function simulatePass() {
+            const prob = PROBLEMS.find(p => p.id === currentProblemId);
+            if (!prob) return;
+
+            const consoleStatus = document.getElementById("console-status");
+            const consoleBody = document.getElementById("console-body");
+
+            consoleStatus.textContent = "Simulated Pass (Đã giả lập vượt qua)";
+            consoleStatus.className = "text-xs font-mono-code text-emerald-400 font-bold";
+
+            let html = `<div class="space-y-2">`;
+            prob.testCases.forEach((tc, idx) => {
+                html += `
+                    <div class="p-2.5 rounded-xl bg-emerald-950/20 border border-emerald-800/60 flex items-center justify-between text-xs">
+                        <span class="text-emerald-400 font-bold"><i class="fa-solid fa-circle-check mr-1.5"></i>Test Case #${idx + 1}: PASSED (Simulated)</span>
+                        <span class="font-mono-code text-slate-400">Output: <strong class="text-emerald-300">${escapeHtml(tc.expected)}</strong></span>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+            consoleBody.innerHTML = html;
+
+            handleProblemPassed(prob);
+        }
+
+        // ==========================================
+        // 6. XỬ LÝ CỘNG XP & THĂNG CẤP (LEVEL UP)
+        // ==========================================
+        function handleProblemPassed(prob) {
+            const alreadySolved = playerState.solvedIds.includes(prob.id);
+
+            if (alreadySolved) {
+                showToast("Bạn đã hoàn thành bài này trước đó rồi! Hãy thử bài mới nhé.", "info");
+                return;
+            }
+
+            // Đánh dấu đã giải
+            playerState.solvedIds.push(prob.id);
+            document.getElementById("problem-solved-badge").classList.remove("hidden");
+
+            // Cộng XP và tính toán lên cấp
+            const oldLevel = playerState.level;
+            playerState.xp += prob.xp;
+
+            let leveledUp = false;
+            while (playerState.xp >= 100) {
+                playerState.xp -= 100;
+                playerState.level += 1;
+                leveledUp = true;
+            }
+
+            saveState();
+            updateHeaderUI();
+            renderQuestList();
+
+            if (leveledUp) {
+                triggerLevelUpCelebration(oldLevel, playerState.level);
+            } else {
+                showToast(`Tuyệt vời! Bạn nhận được +${prob.xp} XP!`, "success");
+            }
+        }
+
+        function triggerLevelUpCelebration(oldLevel, newLevel) {
+            document.getElementById("modal-new-level").textContent = newLevel;
+            document.getElementById("modal-new-rank").textContent = getRankTitle(newLevel);
+
+            // Tìm các bài tập vừa được mở khóa trong khoảng (oldLevel, newLevel]
+            const newlyUnlocked = PROBLEMS.filter(p => p.reqLevel > oldLevel && p.reqLevel <= newLevel);
+            const unlockedBox = document.getElementById("modal-unlocked-box");
+            const unlockedList = document.getElementById("modal-unlocked-list");
+
+            if (newlyUnlocked.length > 0) {
+                unlockedBox.classList.remove("hidden");
+                unlockedList.innerHTML = newlyUnlocked.map(p => `
+                    <li class="flex items-center justify-between bg-slate-900 px-3 py-2 rounded-lg border border-slate-800">
+                        <span class="font-semibold text-sky-300">${p.title}</span>
+                        <span class="text-xs text-amber-400 font-bold">+${p.xp} XP</span>
+                    </li>
+                `).join("");
+            } else {
+                unlockedBox.classList.add("hidden");
+            }
+
+            document.getElementById("levelup-modal").classList.remove("hidden");
+            launchConfetti();
+        }
+
+        function closeLevelUpModal() {
+            document.getElementById("levelup-modal").classList.add("hidden");
+        }
+
+        // ==========================================
+        // 7. CÁC TIỆN ÍCH UI (ĐỔI TÊN, RESET, TOAST)
+        // ==========================================
+        function editPlayerName() {
+            const input = document.getElementById("input-player-name");
+            input.value = playerState.name;
+            document.getElementById("name-modal").classList.remove("hidden");
+            input.focus();
+        }
+
+        function closeNameModal() {
+            document.getElementById("name-modal").classList.add("hidden");
+        }
+
+        function savePlayerName() {
+            const val = document.getElementById("input-player-name").value.trim();
+            if (val) {
+                playerState.name = val;
+                saveState();
+                updateHeaderUI();
+                showToast("Đã cập nhật tên nhân vật!", "success");
+            }
+            closeNameModal();
+        }
+
+        function openResetModal() {
+            document.getElementById("reset-modal").classList.remove("hidden");
+        }
+
+        function closeResetModal() {
+            document.getElementById("reset-modal").classList.add("hidden");
+        }
+
+        function confirmResetProgress() {
+            localStorage.removeItem(STORAGE_KEY);
+            playerState = {
+                name: "Coder Tập Sự",
+                level: 1,
+                xp: 0,
+                solvedIds: [],
+                savedCode: {}
+            };
+            closeResetModal();
+            updateHeaderUI();
+            selectProblem(1);
+            showToast("Đã reset toàn bộ tiến trình về Lv.1!", "info");
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Thông báo nổi (Toast) gọn nhẹ thay thế alert()
+        function showToast(message, type = "info") {
+            const existing = document.getElementById("custom-toast");
+            if (existing) existing.remove();
+
+            const toast = document.createElement("div");
+            toast.id = "custom-toast";
+            
+            let colors = "bg-slate-800 border-sky-500 text-white";
+            let icon = "fa-circle-info text-sky-400";
+            if (type === "success") {
+                colors = "bg-emerald-950/95 border-emerald-500 text-emerald-100";
+                icon = "fa-circle-check text-emerald-400";
+            } else if (type === "warning") {
+                colors = "bg-amber-950/95 border-amber-500 text-amber-100";
+                icon = "fa-triangle-exclamation text-amber-400";
+            }
+
+            toast.className = `fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl border shadow-2xl flex items-center gap-2.5 text-xs sm:text-sm font-medium transition-all duration-300 ${colors}`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-base"></i><span>${message}</span>`;
+
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translateY(10px)";
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
+
+        // ==========================================
+        // 8. HIỆU ỨNG PHÁO HOA (CONFETTI) KHI LEVEL UP
+        // ==========================================
+        function launchConfetti() {
+            const canvas = document.getElementById("confetti-canvas");
+            const ctx = canvas.getContext("2d");
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const colors = ["#38bdf8", "#34d399", "#fbbf24", "#f472b6", "#818cf8"];
+            const particles = Array.from({ length: 120 }, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height - canvas.height,
+                w: Math.random() * 10 + 5,
+                h: Math.random() * 6 + 4,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                speedY: Math.random() * 4 + 2.5,
+                speedX: Math.random() * 3 - 1.5,
+                angle: Math.random() * 360,
+                spin: Math.random() * 8 - 4
+            }));
+
+            let frame = 0;
+            function animateConfetti() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => {
+                    p.y += p.speedY;
+                    p.x += p.speedX;
+                    p.angle += p.spin;
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate((p.angle * Math.PI) / 180);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                    ctx.restore();
+                });
+
+                frame++;
+                if (frame < 160) {
+                    requestAnimationFrame(animateConfetti);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+            animateConfetti();
+        }
+
+        // ==========================================
+        // 9. KHỞI CHẠY ỨNG DỤNG
+        // ==========================================
+        window.onload = function() {
+            loadState();
+            updateHeaderUI();
+            selectProblem(1);
+        };
+    </script>
+</body>
+</html>
