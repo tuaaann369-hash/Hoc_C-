@@ -1,6 +1,6 @@
 // Cấu hình mốc thăng cấp
 const RANKS = [
-  { level: 1, minXp: 0, title: "Tân binh Hello World" },
+  { level: 1, minXp: 0, title: "Tân binh" },
   { level: 2, minXp: 100, title: "Học việc Vòng lặp" },
   { level: 3, minXp: 220, title: "Chiến binh Mảng & Hàm" },
   { level: 4, minXp: 360, title: "Pháp sư Thuật toán" }
@@ -157,16 +157,69 @@ for (int i = 0; i &lt; n; i++) {
   }
 ];
 
+// Bộ tổng hợp âm thanh Web Audio API (Không cần file mp3 ngoài)
+const SoundFX = {
+  enabled: true,
+  ctx: null,
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
+    }
+  },
+  playTone(freq, type, duration, delay = 0, vol = 0.12) {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + delay);
+    gain.gain.setValueAtTime(vol, this.ctx.currentTime + delay);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + delay + duration);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(this.ctx.currentTime + delay);
+    osc.stop(this.ctx.currentTime + delay + duration);
+  },
+  pass() {
+    this.playTone(523.25, "triangle", 0.14, 0);      // C5
+    this.playTone(659.25, "triangle", 0.14, 0.09);   // E5
+    this.playTone(783.99, "triangle", 0.25, 0.18);   // G5
+  },
+  levelUp() {
+    this.playTone(523.25, "sine", 0.15, 0, 0.16);
+    this.playTone(659.25, "sine", 0.15, 0.1, 0.16);
+    this.playTone(783.99, "sine", 0.15, 0.2, 0.16);
+    this.playTone(1046.5, "triangle", 0.45, 0.3, 0.2);
+  },
+  error() {
+    this.playTone(196.0, "sawtooth", 0.16, 0, 0.08);
+    this.playTone(155.56, "sawtooth", 0.24, 0.12, 0.08);
+  }
+};
+
 // Trạng thái lưu trữ
 let state = JSON.parse(localStorage.getItem("cpp_rpg_state")) || {
   xp: 0,
+  streak: 0,
   readLessons: [],
   solvedProblems: []
 };
+if (typeof state.streak !== "number") state.streak = 0;
 
 let currentStageIndex = 0;
 let currentProblemIndex = 0;
-let currentMode = "theory"; // "theory" | "practice"
+
+// Khởi tạo trình soạn thảo CodeMirror C++
+const cmEditor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
+  mode: "text/x-c++src",
+  theme: "dracula",
+  lineNumbers: true,
+  autoCloseBrackets: true,
+  indentUnit: 4,
+  tabSize: 4
+});
 
 // DOM Elements
 const roadmapList = document.getElementById("roadmap-list");
@@ -174,6 +227,8 @@ const playerLevelEl = document.getElementById("player-level");
 const playerRankEl = document.getElementById("player-rank");
 const xpBarFill = document.getElementById("xp-bar-fill");
 const xpTextEl = document.getElementById("xp-text");
+const streakBadgeEl = document.getElementById("streak-badge");
+const streakCountEl = document.getElementById("streak-count");
 
 const stageTagEl = document.getElementById("current-stage-tag");
 const workspaceTitleEl = document.getElementById("workspace-title");
@@ -192,11 +247,33 @@ const problemInputDescEl = document.getElementById("problem-input-desc");
 const problemOutputDescEl = document.getElementById("problem-output-desc");
 const sampleInputEl = document.getElementById("sample-input");
 const sampleOutputEl = document.getElementById("sample-output");
-const codeEditorEl = document.getElementById("code-editor");
 const consoleOutputEl = document.getElementById("console-output");
+const testcasePillsEl = document.getElementById("testcase-pills");
 
 function saveState() {
   localStorage.setItem("cpp_rpg_state", JSON.stringify(state));
+}
+
+function spawnFloatingXp(amount, targetEl) {
+  const rect = targetEl.getBoundingClientRect();
+  const badge = document.createElement("div");
+  badge.className = "floating-xp";
+  badge.textContent = `+${amount} XP ✨`;
+  badge.style.left = `${rect.left + rect.width / 2 - 40}px`;
+  badge.style.top = `${rect.top - 10}px`;
+  document.body.appendChild(badge);
+  setTimeout(() => badge.remove(), 1250);
+}
+
+function fireConfetti(isBig = false) {
+  if (typeof confetti !== "function") return;
+  if (isBig) {
+    confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
+    setTimeout(() => confetti({ particleCount: 70, angle: 60, spread: 55, origin: { x: 0 } }), 200);
+    setTimeout(() => confetti({ particleCount: 70, angle: 120, spread: 55, origin: { x: 1 } }), 350);
+  } else {
+    confetti({ particleCount: 55, spread: 65, origin: { y: 0.65 } });
+  }
 }
 
 function getPlayerLevelInfo(xp) {
@@ -211,19 +288,25 @@ function getPlayerLevelInfo(xp) {
   return { current, next };
 }
 
-function addXp(amount) {
+function addXp(amount, sourceElement) {
   const beforeLevel = getPlayerLevelInfo(state.xp).current.level;
   state.xp += amount;
   saveState();
   const afterInfo = getPlayerLevelInfo(state.xp);
 
+  if (sourceElement) spawnFloatingXp(amount, sourceElement);
   updateHud();
   renderRoadmap();
 
   if (afterInfo.current.level > beforeLevel) {
+    SoundFX.levelUp();
+    fireConfetti(true);
     document.getElementById("levelup-text").textContent =
       `Bạn đã đạt Lv.${afterInfo.current.level} (${afterInfo.current.title}) và mở khóa nội dung mới!`;
     document.getElementById("levelup-modal").classList.remove("hidden");
+  } else {
+    SoundFX.pass();
+    fireConfetti(false);
   }
 }
 
@@ -231,6 +314,9 @@ function updateHud() {
   const { current, next } = getPlayerLevelInfo(state.xp);
   playerLevelEl.textContent = `Lv.${current.level}`;
   playerRankEl.textContent = current.title;
+
+  streakCountEl.textContent = state.streak;
+  streakBadgeEl.classList.toggle("hot", state.streak >= 2);
 
   if (next) {
     const progress = ((state.xp - current.minXp) / (next.minXp - current.minXp)) * 100;
@@ -289,7 +375,7 @@ function renderWorkspace() {
     claimLessonBtn.disabled = false;
   }
 
-  // Render danh sách bài tập trong chương
+  // Render danh sách bài tập
   problemSelectorEl.innerHTML = "";
   stage.problems.forEach((prob, idx) => {
     const isSolved = state.solvedProblems.includes(prob.id);
@@ -303,7 +389,7 @@ function renderWorkspace() {
     problemSelectorEl.appendChild(btn);
   });
 
-  // Render chi tiết bài tập đang chọn
+  // Render chi tiết bài tập
   const prob = stage.problems[currentProblemIndex];
   problemTitleEl.textContent = prob.title;
   problemXpEl.textContent = state.solvedProblems.includes(prob.id)
@@ -315,18 +401,25 @@ function renderWorkspace() {
   sampleInputEl.textContent = prob.testCases[0].input;
   sampleOutputEl.textContent = prob.testCases[0].expected;
 
-  // Nạp code đã lưu hoặc code mẫu
   const savedCode = localStorage.getItem(`code_${prob.id}`);
-  codeEditorEl.value = savedCode || prob.starterCode;
+  cmEditor.setValue(savedCode || prob.starterCode);
+  setTimeout(() => cmEditor.refresh(), 15);
+
+  testcasePillsEl.innerHTML = "";
   setConsole("Sẵn sàng chấm bài. Hãy viết code C++ và bấm Nộp bài.", "");
 }
 
 function setConsole(text, statusClass) {
   consoleOutputEl.textContent = text;
   consoleOutputEl.className = `console-output ${statusClass}`;
+  if (statusClass === "error") {
+    consoleOutputEl.classList.remove("shake-anim");
+    void consoleOutputEl.offsetWidth; // trigger reflow
+    consoleOutputEl.classList.add("shake-anim");
+  }
 }
 
-// Gọi API Wandbox để biên dịch & chạy C++ thật
+// Gọi API Wandbox biên dịch C++ thật
 async function executeCpp(sourceCode, stdinInput) {
   const response = await fetch("https://wandbox.org/api/compile.json", {
     method: "POST",
@@ -345,16 +438,10 @@ async function executeCpp(sourceCode, stdinInput) {
 
   const data = await response.json();
 
-  // Kiểm tra lỗi biên dịch
   if (data.status === undefined && data.compiler_error) {
-    return {
-      ok: false,
-      errorType: "LỖI BIÊN DỊCH (Compile Error)",
-      detail: data.compiler_error
-    };
+    return { ok: false, errorType: "LỖI BIÊN DỊCH (Compile Error)", detail: data.compiler_error };
   }
 
-  // Kiểm tra lỗi khi chạy chương trình
   if (data.status !== "0") {
     return {
       ok: false,
@@ -369,99 +456,140 @@ async function executeCpp(sourceCode, stdinInput) {
   };
 }
 
-// Chạy thử với Test case 1
+// Chạy thử ví dụ
 async function handleRunSample() {
-  const stage = CURRICULUM[currentStageIndex];
-  const prob = stage.problems[currentProblemIndex];
-  const code = codeEditorEl.value.trim();
+  const prob = CURRICULUM[currentStageIndex].problems[currentProblemIndex];
+  const rawCode = cmEditor.getValue();
 
-  if (!code) {
+  if (!rawCode.trim()) {
+    SoundFX.error();
     setConsole("❌ Bạn chưa nhập code C++!", "error");
     return;
   }
 
-  localStorage.setItem(`code_${prob.id}`, codeEditorEl.value);
+  localStorage.setItem(`code_${prob.id}`, rawCode);
+  testcasePillsEl.innerHTML = `<span class="tc-pill running">⏳ Ví dụ #1</span>`;
   setConsole("⏳ Đang biên dịch và chạy thử ví dụ...", "");
 
   try {
     const sample = prob.testCases[0];
-    const res = await executeCpp(code, sample.input);
+    const res = await executeCpp(rawCode, sample.input);
 
     if (!res.ok) {
+      SoundFX.error();
+      testcasePillsEl.innerHTML = `<span class="tc-pill fail">✖ Lỗi biên dịch</span>`;
       setConsole(`❌ ${res.errorType}:\n${res.detail}`, "error");
       return;
     }
 
     const passed = res.output === sample.expected.trim();
     if (passed) {
+      SoundFX.pass();
+      testcasePillsEl.innerHTML = `<span class="tc-pill pass">✔ Ví dụ #1</span>`;
       setConsole(
-        `✅ Chạy thử ví dụ KHỚP!\n• Input: ${sample.input}\n• Output của bạn: ${res.output}\n\n👉 Hãy bấm "Nộp bài chấm điểm" để kiểm tra toàn bộ test case ẩn và nhận XP!`,
+        `✅ Chạy thử ví dụ KHỚP!\n• Input: ${sample.input}\n• Output của bạn: ${res.output}\n\n👉 Bấm "Nộp bài chấm điểm" để kiểm tra toàn bộ test case ẩn và nhận XP!`,
         "success"
       );
     } else {
+      SoundFX.error();
+      testcasePillsEl.innerHTML = `<span class="tc-pill fail">✖ Ví dụ #1</span>`;
       setConsole(
         `⚠️ Output chưa khớp ví dụ:\n• Input: ${sample.input}\n• Mong đợi: ${sample.expected}\n• Thực tế: ${res.output || "(Không in ra gì)"}`,
         "error"
       );
     }
   } catch (err) {
+    SoundFX.error();
     setConsole(`❌ Không thể kết nối trình biên dịch: ${err.message}`, "error");
   }
 }
 
-// Nộp bài & chấm toàn bộ Test Cases
+// Nộp bài chấm điểm toàn bộ test case
 async function handleSubmitCode() {
-  const stage = CURRICULUM[currentStageIndex];
-  const prob = stage.problems[currentProblemIndex];
-  const code = codeEditorEl.value.trim();
+  const prob = CURRICULUM[currentStageIndex].problems[currentProblemIndex];
+  const rawCode = cmEditor.getValue();
+  const submitBtn = document.getElementById("submit-code-btn");
 
-  if (!code) {
+  if (!rawCode.trim()) {
+    SoundFX.error();
     setConsole("❌ Bạn chưa nhập code C++!", "error");
     return;
   }
 
-  localStorage.setItem(`code_${prob.id}`, codeEditorEl.value);
-  const submitBtn = document.getElementById("submit-code-btn");
+  localStorage.setItem(`code_${prob.id}`, rawCode);
   submitBtn.disabled = true;
+  testcasePillsEl.innerHTML = "";
 
   try {
     for (let i = 0; i < prob.testCases.length; i++) {
       const tc = prob.testCases[i];
-      setConsole(`⏳ Đang chấm Test case ${i + 1}/${prob.testCases.length}...`, "");
+      const pill = document.createElement("span");
+      pill.className = "tc-pill running";
+      pill.textContent = `⏳ Test #${i + 1}`;
+      testcasePillsEl.appendChild(pill);
 
-      const res = await executeCpp(code, tc.input);
+      setConsole(`⏳ Đang chấm Test case ${i + 1}/${prob.testCases.length}...`, "");
+      const res = await executeCpp(rawCode, tc.input);
 
       if (!res.ok) {
+        pill.className = "tc-pill fail";
+        pill.textContent = `✖ Test #${i + 1}`;
+        state.streak = 0;
+        saveState();
+        updateHud();
+        SoundFX.error();
         setConsole(`❌ ${res.errorType}:\n${res.detail}`, "error");
         return;
       }
 
       if (res.output !== tc.expected.trim()) {
+        pill.className = "tc-pill fail";
+        pill.textContent = `✖ Test #${i + 1}`;
+        state.streak = 0;
+        saveState();
+        updateHud();
+        SoundFX.error();
         setConsole(
           `❌ SAI Ở TEST CASE #${i + 1}:\n• Input: ${tc.input}\n• Đáp án đúng: ${tc.expected}\n• Output của bạn: ${res.output || "(Trống)"}`,
           "error"
         );
         return;
       }
+
+      pill.className = "tc-pill pass";
+      pill.textContent = `✔ Test #${i + 1}`;
     }
 
     // Vượt qua 100% test case
+    state.streak += 1;
     const alreadySolved = state.solvedProblems.includes(prob.id);
+
     if (!alreadySolved) {
       state.solvedProblems.push(prob.id);
-      addXp(prob.xp);
+      addXp(prob.xp, submitBtn);
       renderWorkspace();
+      // Giữ lại các pill xanh sau khi renderWorkspace
+      prob.testCases.forEach((_, idx) => {
+        const p = document.createElement("span");
+        p.className = "tc-pill pass";
+        p.textContent = `✔ Test #${idx + 1}`;
+        testcasePillsEl.appendChild(p);
+      });
       setConsole(
-        `🎉 CHÍNH XÁC! Vượt qua ${prob.testCases.length}/${prob.testCases.length} test case.\n🏆 Bạn nhận được +${prob.xp} XP!`,
+        `🎉 CHÍNH XÁC! Vượt qua ${prob.testCases.length}/${prob.testCases.length} test case.\n🏆 Bạn nhận được +${prob.xp} XP! (Chuỗi thắng: ${state.streak} 🔥)`,
         "success"
       );
     } else {
+      saveState();
+      updateHud();
+      SoundFX.pass();
       setConsole(
-        `✅ CHÍNH XÁC! Vượt qua ${prob.testCases.length}/${prob.testCases.length} test case.\n(Bạn đã nhận XP cho bài này trước đó)`,
+        `✅ CHÍNH XÁC! Vượt qua ${prob.testCases.length}/${prob.testCases.length} test case.\n(Bạn đã nhận XP cho bài này trước đó • Chuỗi thắng: ${state.streak} 🔥)`,
         "success"
       );
     }
   } catch (err) {
+    SoundFX.error();
     setConsole(`❌ Lỗi kết nối máy chủ chấm bài: ${err.message}`, "error");
   } finally {
     submitBtn.disabled = false;
@@ -470,7 +598,6 @@ async function handleSubmitCode() {
 
 // Chuyển tab Lý thuyết / Luyện tập
 tabTheoryBtn.onclick = () => {
-  currentMode = "theory";
   tabTheoryBtn.classList.add("active");
   tabPracticeBtn.classList.remove("active");
   theoryView.classList.remove("hidden");
@@ -478,11 +605,11 @@ tabTheoryBtn.onclick = () => {
 };
 
 tabPracticeBtn.onclick = () => {
-  currentMode = "practice";
   tabPracticeBtn.classList.add("active");
   tabTheoryBtn.classList.remove("active");
   practiceView.classList.remove("hidden");
   theoryView.classList.add("hidden");
+  setTimeout(() => cmEditor.refresh(), 15);
 };
 
 // Nhận thưởng đọc lý thuyết
@@ -490,31 +617,26 @@ claimLessonBtn.onclick = () => {
   const stage = CURRICULUM[currentStageIndex];
   if (!state.readLessons.includes(stage.id)) {
     state.readLessons.push(stage.id);
-    addXp(stage.lesson.xp);
+    addXp(stage.lesson.xp, claimLessonBtn);
     renderWorkspace();
   }
 };
 
-// Hỗ trợ phím Tab trong khung gõ code
-codeEditorEl.addEventListener("keydown", function (e) {
-  if (e.key === "Tab") {
-    e.preventDefault();
-    const start = this.selectionStart;
-    const end = this.selectionEnd;
-    this.value = this.value.substring(0, start) + "    " + this.value.substring(end);
-    this.selectionStart = this.selectionEnd = start + 4;
-  }
-});
-
 document.getElementById("reset-code-btn").onclick = () => {
   const prob = CURRICULUM[currentStageIndex].problems[currentProblemIndex];
-  codeEditorEl.value = prob.starterCode;
+  cmEditor.setValue(prob.starterCode);
   localStorage.removeItem(`code_${prob.id}`);
+  testcasePillsEl.innerHTML = "";
   setConsole("Đã khôi phục code mẫu.", "");
 };
 
 document.getElementById("run-sample-btn").onclick = handleRunSample;
 document.getElementById("submit-code-btn").onclick = handleSubmitCode;
+
+document.getElementById("sound-toggle-btn").onclick = (e) => {
+  SoundFX.enabled = !SoundFX.enabled;
+  e.target.textContent = SoundFX.enabled ? "🔊" : "🔇";
+};
 
 document.getElementById("close-modal-btn").onclick = () => {
   document.getElementById("levelup-modal").classList.add("hidden");
@@ -523,7 +645,7 @@ document.getElementById("close-modal-btn").onclick = () => {
 document.getElementById("reset-btn").onclick = () => {
   if (confirm("Bạn có chắc muốn xóa toàn bộ cấp độ và XP để chơi lại từ đầu?")) {
     localStorage.clear();
-    state = { xp: 0, readLessons: [], solvedProblems: [] };
+    state = { xp: 0, streak: 0, readLessons: [], solvedProblems: [] };
     currentStageIndex = 0;
     currentProblemIndex = 0;
     updateHud();
@@ -533,6 +655,9 @@ document.getElementById("reset-btn").onclick = () => {
 };
 
 // Khởi chạy ứng dụng
+updateHud();
+renderRoadmap();
+renderWorkspace();
 updateHud();
 renderRoadmap();
 renderWorkspace();
