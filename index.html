@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>C++ Level-Up RPG | Học & Luyện Code</title>
+  <!-- CodeMirror CSS (Tô màu cú pháp C++) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -11,20 +14,27 @@
   <header class="topbar">
     <div class="brand">
       <span class="logo">⚔️ C++ RPG</span>
-      <span class="subtitle">Luyện bài thăng cấp</span>
+      <span class="subtitle">Đấu trường Thuật toán</span>
     </div>
 
     <div class="player-hud">
+      <div id="streak-badge" class="streak-badge" title="Chuỗi giải đúng liên tiếp">
+        🔥 <span id="streak-count">0</span>
+      </div>
+
       <div class="rank-info">
         <span id="player-level" class="badge-level">Lv.1</span>
         <span id="player-rank" class="rank-title">Tân binh Hello World</span>
       </div>
+
       <div class="xp-wrapper">
         <div class="xp-bar-bg">
           <div id="xp-bar-fill" class="xp-bar-fill" style="width: 0%"></div>
         </div>
         <span id="xp-text" class="xp-text">0 / 100 XP</span>
       </div>
+
+      <button id="sound-toggle-btn" class="btn-icon" title="Bật/Tắt âm thanh">🔊</button>
       <button id="reset-btn" class="btn-ghost" title="Đặt lại tiến trình">↺ Reset</button>
     </div>
   </header>
@@ -41,8 +51,8 @@
     <section class="workspace">
       <div class="workspace-header">
         <div>
-          <span id="current-stage-tag" class="stage-tag">Chương 1 • Yêu cầu Lv.1</span>
-          <h1 id="workspace-title">Nhập môn C++</h1>
+          <span id="current-stage-tag" class="stage-tag">Yêu cầu Lv.1</span>
+          <h1 id="workspace-title">Chương 1: Nhập xuất & Biến cơ bản</h1>
         </div>
         <div class="mode-tabs">
           <button id="tab-theory" class="tab-btn active">📖 Học Lý Thuyết</button>
@@ -51,7 +61,7 @@
       </div>
 
       <!-- Chế độ 1: Học lý thuyết -->
-      <div id="theory-view" class="panel">
+      <div id="theory-view" class="panel animate-fade">
         <div id="theory-content" class="theory-body"></div>
         <div class="theory-footer">
           <button id="claim-lesson-btn" class="btn-primary">
@@ -61,8 +71,7 @@
       </div>
 
       <!-- Chế độ 2: Luyện bài tập -->
-      <div id="practice-view" class="panel hidden">
-        <!-- Bộ chọn bài trong chương -->
+      <div id="practice-view" class="panel animate-fade hidden">
         <div id="problem-selector" class="problem-selector"></div>
 
         <div class="problem-box">
@@ -95,23 +104,28 @@
           </div>
         </div>
 
-        <!-- Trình soạn thảo code -->
+        <!-- Trình soạn thảo code CodeMirror -->
         <div class="editor-section">
           <div class="editor-toolbar">
-            <span>💻 main.cpp (C++17)</span>
-            <button id="reset-code-btn" class="btn-small">Khôi phục code mẫu</button>
+            <span class="file-tab">📄 main.cpp <small>(C++17 • Auto-bracket)</small></span>
+            <button id="reset-code-btn" class="btn-small">↺ Khôi phục code mẫu</button>
           </div>
-          <textarea id="code-editor" spellcheck="false" placeholder="Nhập code C++ của bạn tại đây..."></textarea>
+          <div class="editor-wrapper">
+            <textarea id="code-editor"></textarea>
+          </div>
 
           <div class="action-bar">
             <button id="run-sample-btn" class="btn-secondary">▶ Chạy thử ví dụ</button>
-            <button id="submit-code-btn" class="btn-primary">🚀 Nộp bài chấm điểm</button>
+            <button id="submit-code-btn" class="btn-primary btn-glow">🚀 Nộp bài chấm điểm</button>
           </div>
         </div>
 
-        <!-- Bảng kết quả chấm -->
+        <!-- Bảng kết quả chấm trực quan -->
         <div class="console-section">
-          <div class="console-header">🖥️ Kết quả biên dịch & Chấm bài</div>
+          <div class="console-header">
+            <span>🖥️ Kết quả biên dịch & Chấm bài</span>
+            <div id="testcase-pills" class="testcase-pills"></div>
+          </div>
           <pre id="console-output" class="console-output">Sẵn sàng. Hãy viết code và bấm "Chạy thử" hoặc "Nộp bài".</pre>
         </div>
       </div>
@@ -121,12 +135,22 @@
   <!-- Thông báo thăng cấp -->
   <div id="levelup-modal" class="modal hidden">
     <div class="modal-card">
-      <div class="modal-icon">🎉</div>
+      <div class="modal-rays"></div>
+      <div class="modal-icon">🏆</div>
       <h2>THĂNG CẤP THÀNH CÔNG!</h2>
       <p id="levelup-text">Bạn đã đạt Level 2!</p>
-      <button id="close-modal-btn" class="btn-primary">Tiếp tục chiến đấu</button>
+      <button id="close-modal-btn" class="btn-primary btn-glow">Tiếp tục chinh phục</button>
     </div>
   </div>
+
+  <!-- Thư viện CodeMirror & Pháo giấy -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
 
   <script src="script.js"></script>
 </body>
